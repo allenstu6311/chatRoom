@@ -12,31 +12,39 @@
 </head>
 
 <body>
-
-
+    <!-- top: item.y + '%' -->
     <div id="app">
         <div class="section">
             <!-- 主畫面區 -->
-            <div class="view row">
-                <div class="role" ref="role" v-for="(item,index) in roleData"
-                    :style="{left:item.x + 'px', top: item.y + '%'}">
-                    <img :src="item.pic" alt="" :style="{transform:`scaleX(${item.scaleX})`}">
-                    <!-- 角色名稱 -->
-                    <div class="role-name">
-                        {{item.name}}
+            <div class="view row" ref="view">
+
+                <!-- 陸地 -->
+                <div class="footer">
+                    <!-- 腳色 -->
+                    <div class="role" ref="role" v-for="(item,index) in roleData" :style="{left:item.x + 'px',}">
+                        <img :src="item.pic" alt="" :style="{transform:`scaleX(${item.scaleX})`}">
+                        <!-- 角色名稱 -->
+                        <div class="role-name">
+                            {{item.name}}
+                        </div>
+                        <!-- 聊天雲 -->
+                        <div class="chat-cloud" v-show="item.message" ref="chatCloud"
+                            :style="{top:chatCloudPosition[index] + 'px'}">
+                            <p>{{item.message}}</p>
+                        </div>
                     </div>
-                    <!-- 聊天雲 -->
-                    <div class="chat-cloud" v-show="item.message" ref="chatCloud"
-                        :style="{top:chatCloudPosition[index] + 'px'}">
-                        <p>{{item.message}}</p>
-                    </div>
+
                 </div>
             </div>
             <!-- 聊天輸入區 -->
-            <div class="chat row" ref="test">
-
+            <div class="chat row">
+                <ul class="chat-record">
+                    <li style="height: 24px;" v-show="chatRecord.length <= 1"></li>
+                    <li style="height:24px" v-show="chatRecord.length <= 2"></li>
+                    <li v-for="item in chatRecord">{{ item.message }} {{chatRecord.length}}</li>
+                </ul>
                 <input type="texg" id="inputPassword5" class="form-control" aria-describedby="passwordHelpBlock"
-                    v-model="message" @keyup.enter="sendMessage">
+                    v-model="message" @keyup.enter="sendMessage" placeholder="請出入文字訊息">
             </div>
             <ul class="notify">
                 <li v-for="item in notifyList">{{item}}</li>
@@ -75,7 +83,8 @@
                     message: '',
                     roleIndex: '',
                     chatCloudPosition: [],
-                    notifyList: []
+                    notifyList: [],
+                    chatRecord: [],
                 }
             },
             methods: {
@@ -94,7 +103,9 @@
                 },
                 initChartRoom() {
                     this.callBackendAPI("/init", null, (res) => {
-                        this.roleData = res.data
+                        console.log('res',res.data)
+                        this.roleData = res.data.roleData
+                        this.chatRecord = res.data.chatData
                         this.socket.emit("move", { roleData: this.roleData, token: this.token })
 
                         this.roleIndex = this.roleData.findIndex(item => item.token == this.token)
@@ -112,25 +123,31 @@
                 moveRole(e) {
                     this.moving = true;
                     let role = this.$refs.role;
+                    let viewWidth = this.$refs.view.clientWidth
+                    let roleWidth = role[this.roleIndex].clientWidth
                     //TODO 加入scaleX = -1 讓他會轉方向
 
                     switch (e.keyCode) {
                         case 39:
-                            this.roleData[this.roleIndex].x += 20;
+                            if ((viewWidth - roleWidth - 18) > this.roleData[this.roleIndex].x) {
+                                this.roleData[this.roleIndex].x += 20;
+
+                            }
                             this.roleData[this.roleIndex].scaleX = 1;
-
+                            this.socket.emit("move", { roleData: this.roleData, token: this.token })
 
                             // gsap.to(role[this.roleIndex], {
                             //     x: this.roleData[this.roleIndex].x,
                             //     duration: 0.2,
                             //     ease: "power2.inOut",
                             // });
-                            this.socket.emit("move", { roleData: this.roleData, token: this.token })
-
                             break;
-                        case 37: this.roleData[this.roleIndex].x -= 20;
-                        this.roleData[this.roleIndex].scaleX = -1;
 
+                        case 37:
+                            if (role[this.roleIndex].offsetLeft > 15) {
+                                this.roleData[this.roleIndex].x -= 20;
+                            }
+                            this.roleData[this.roleIndex].scaleX = -1;
 
                             // gsap.to(role[this.roleIndex], {
                             //     x: this.roleData[this.roleIndex].x,
@@ -138,7 +155,6 @@
                             //     ease: "power2.inOut",
                             // });
                             this.socket.emit("move", { roleData: this.roleData, token: this.token })
-
                             break;
                         // case 32: this.throttle(this.jump(role[this.roleIndex]), 2000); break;
                         default: return;
@@ -183,6 +199,7 @@
                 },
                 sendMessage() {
                     let param = {
+                        name: this.userInfo.name,
                         token: this.token,
                         message: this.message
                     }
@@ -267,10 +284,11 @@
                         case 3:
                             this.socket.emit("heartbeat", { token: this.token, name: this.userInfo.name })
                             break;
+                        case 4:
+                            this.chatRecord = res.data
+                            break;
                     }
                 })
-
-
             },
         }
 

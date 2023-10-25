@@ -75,11 +75,17 @@ app.get("/init", (req, res) => {
     //     console.log('data',data)
     //     res.json(data)
     // })
-    let data = fs.readFileSync("./data/role.json")
+    let data = fs.readFileSync("./data/role.json","utf-8")
+    let chatData = fs.readFileSync("./data/chatRecord.json","utf-8")
 
-    data = JSON.parse(data.toString())
-    console.log('創建成功', data)
-    res.json(data)
+    let responseData = {
+        roleData:JSON.parse(data),
+        chatData:JSON.parse(chatData)
+    }
+
+    // data = JSON.parse(data.toString())
+    // console.log('創建成功', data)
+    res.json(responseData)
 })
 
 
