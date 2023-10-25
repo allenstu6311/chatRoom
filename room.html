@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/room.css">
+</head>
+
+<body>
+
+
+    <div id="app">
+        <div class="section">
+            <!-- 主畫面區 -->
+            <div class="view row">
+                <div class="role" ref="role" v-for="(item,index) in roleData"
+                    :style="{left:item.x + 'px', top: item.y + '%'}">
+                    <img :src="item.pic" alt="" :style="{transform:`scaleX(${item.scaleX})`}">
+                    <!-- 角色名稱 -->
+                    <div class="role-name">
+                        {{item.name}}
+                    </div>
+                    <!-- 聊天雲 -->
+                    <div class="chat-cloud" v-show="item.message" ref="chatCloud"
+                        :style="{top:chatCloudPosition[index] + 'px'}">
+                        <p>{{item.message}}</p>
+                    </div>
+                </div>
+            </div>
+            <!-- 聊天輸入區 -->
+            <div class="chat row" ref="test">
+
+                <input type="texg" id="inputPassword5" class="form-control" aria-describedby="passwordHelpBlock"
+                    v-model="message" @keyup.enter="sendMessage">
+            </div>
+            <ul class="notify">
+                <li v-for="item in notifyList">{{item}}</li>
+            </ul>
+        </div>
+    </div>
+
+
+
+    <script src="https://code.createjs.com/createjs-2015.11.26.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.1/axios.min.js"
+        integrity="sha512-emSwuKiMyYedRwflbZB2ghzX8Cw8fmNVgZ6yQNNXXagFzFOaQmbvQ1vmDkddHjm5AITcBIZfC7k4ShQSjgPAmQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/vue@next"></script>
+    <script>
+        const app = {
+            data() {
+                return {
+                    x: 120,
+                    y: 960,
+                    innerWidth: 0,
+                    roleData: [],
+                    userInfo: {},
+                    socket: '',
+                    moving: false,
+                    move: {
+                        left: false,
+                        right: false,
+                        jump: false
+                    },
+                    message: '',
+                    roleIndex: '',
+                    chatCloudPosition: [],
+                    notifyList: []
+                }
+            },
+            methods: {
+                callBackendAPI(url, param, callBack) {
+                    return axios.get(url, {
+                        params: {
+                            param
+                        }
+                    })
+                        .then((res) => {
+                            callBack(res)
+                        })
+                        .catch((err) => {
+                            console.log("err msg", err)
+                        })
+                },
+                initChartRoom() {
+                    this.callBackendAPI("/init", null, (res) => {
+                        this.roleData = res.data
+                        this.socket.emit("move", { roleData: this.roleData, token: this.token })
+
+                        this.roleIndex = this.roleData.findIndex(item => item.token == this.token)
+                        this.$nextTick(() => {
+                            let role = this.$refs.role
+                            this.getChatCloudPosition()
+                            // gsap.to(role[this.roleIndex], {
+                            //     x: this.roleData[this.roleIndex].x,
+                            //     duration: 0
+                            // });
+                        })
+
+                    })
+                },
+                moveRole(e) {
+                    this.moving = true;
+                    let role = this.$refs.role;
+                    //TODO 加入scaleX = -1 讓他會轉方向
+
+                    switch (e.keyCode) {
+                        case 39:
+                            this.roleData[this.roleIndex].x += 20;
+                            this.roleData[this.roleIndex].scaleX = 1;
+
+
+                            // gsap.to(role[this.roleIndex], {
+                            //     x: this.roleData[this.roleIndex].x,
+                            //     duration: 0.2,
+                            //     ease: "power2.inOut",
+                            // });
+                            this.socket.emit("move", { roleData: this.roleData, token: this.token })
+
+                            break;
+                        case 37: this.roleData[this.roleIndex].x -= 20;
+                        this.roleData[this.roleIndex].scaleX = -1;
+
+
+                            // gsap.to(role[this.roleIndex], {
+                            //     x: this.roleData[this.roleIndex].x,
+                            //     duration: 0.2,
+                            //     ease: "power2.inOut",
+                            // });
+                            this.socket.emit("move", { roleData: this.roleData, token: this.token })
+
+                            break;
+                        // case 32: this.throttle(this.jump(role[this.roleIndex]), 2000); break;
+                        default: return;
+                    }
+
+                },
+                jump(item) {
+                    gsap.to(item, {
+                        y: -200,
+                        duration: 0.2,
+                        ease: "power2.inOut",
+                        yoyo: true,
+                        onComplete: () => {
+                            this.roleData[this.roleIndex].y -= 200
+                            this.socket.emit("move", { roleData: this.roleData, token: this.token })
+                            gsap.to(item, {
+                                y: 0,
+                                duration: 0.2,
+                                ease: "power2.inOut",
+                                onComplete: () => {
+                                    this.roleData[this.roleIndex].y += 200
+                                    this.socket.emit("move", { roleData: this.roleData, token: this.token })
+                                }
+                            });
+                        }
+                    });
+                },
+                //取得聊天雲高度
+                getChatCloudPosition() {
+                    this.chatCloudPosition = []
+                    let role = this.$refs.role
+                    let chatCloud = this.$refs.chatCloud
+
+                    if (role) {
+                        // role = role[this.roleIndex]
+                        // chatCloud = chatCloud[this.roleIndex]
+                        for (let i = 0; i < role.length; i++) {
+                            this.chatCloudPosition.push(-(role[i].clientHeight + chatCloud[i].clientHeight) + 90)
+                        }
+
+                    }
+                },
+                sendMessage() {
+                    let param = {
+                        token: this.token,
+                        message: this.message
+                    }
+                    this.socket.emit("chat", param)
+                    this.clearMessage(this.roleIndex, this.message)
+                    this.message = ""
+                },
+                clearMessage(index, message) {
+                    let recordMessage = message;
+
+                    setTimeout(() => {
+                        if (this.roleData[index].message == recordMessage) {
+                            this.roleData[index].message = ""
+                            let param = {
+                                token: this.token,
+                                message: ""
+                            }
+                            this.socket.emit("chat", param)
+                        }
+                    }, 5000)
+                },
+                throttle(func, delay) {
+                    var timer;
+                    return function () {
+                        if (!timer) {
+                            func.apply(this, arguments);
+                            timer = setTimeout(function () {
+                                timer = null;
+                            }, delay);
+                        }
+                    };
+                },
+            },
+            computed: {
+                currentRole() {
+                    let role = this.$refs.role
+                    if (role) {
+                        return role[this.roleIndex]
+                    }
+                    return null
+                },
+            },
+            mounted() {
+                this.socket = io();
+
+                window.addEventListener("keydown", this.throttle(this.moveRole, 100))
+                // window.addEventListener("beforeunload", () => {
+                //     alert("確定要離開嗎？");
+                // });
+
+                this.innerWidth = window.innerWidth
+                this.userInfo = JSON.parse(sessionStorage.getItem("userInfo"))
+                this.token = this.userInfo.token
+
+                this.initChartRoom()//初始化聊天室
+
+                this.socket.on('connect', () => {
+                    this.socket.emit("heartbeat", { token: this.token, name: this.userInfo.name })
+                });
+
+                this.socket.on('notify', (res) => {
+                    if (this.notifyList.length >= 5) {
+                        this.notifyList.splice(0)
+                    }
+                    this.notifyList.push(res.message)
+                })
+
+                this.socket.on("update", (res) => {
+                    switch (res.type) {
+                        case 1:
+                            this.roleData = res.data
+                            this.roleIndex = this.roleData.findIndex(item => item.token == this.token)
+                                ; break;
+                        case 2:
+                            this.roleData = res.data;
+                            // 設定聊天雲高度
+                            setTimeout(() => {
+                                this.getChatCloudPosition()
+                            }, 0)
+                            break;
+
+                        case 3:
+                            this.socket.emit("heartbeat", { token: this.token, name: this.userInfo.name })
+                            break;
+                    }
+                })
+
+
+            },
+        }
+
+        Vue.createApp(app).mount('#app')
+    </script>
+</body>
+
+</html>

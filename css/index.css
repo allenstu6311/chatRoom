@@ -1,0 +1,31 @@
+#app{
+    width: 100%;
+    height: 100vh;
+    background-image: url("../pic/background.jpg");
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+
+.bold{
+    font-weight: bold;
+}
+
+img{
+    width: 100%;
+    height: 100%;
+}
+
+.inputBox{
+    margin: auto;
+    margin-top: 20px;
+}
+
+.ghost:hover{
+    border: 1px solid gray;
+    cursor: pointer;
+}
+
+.checkGhost{
+    border: 1px solid skyblue !important;
+}
