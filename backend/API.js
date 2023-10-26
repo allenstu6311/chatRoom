@@ -49,6 +49,7 @@ app.get('/room.html', (req, res) => {
     res.sendFile(path.join(indexPath, 'room.html'));
 });
 
+//登入創建
 app.post("/login", (req, res) => {
     let selectKey = uuidv4()//製作token
     let userInfo = {
@@ -69,12 +70,8 @@ app.post("/login", (req, res) => {
     })
 })
 
+//初始化
 app.get("/init", (req, res) => {
-    // fs.readFile("./data/role.json",(err,data)=>{
-    //     data = JSON.parse(data.toString())
-    //     console.log('data',data)
-    //     res.json(data)
-    // })
     let data = fs.readFileSync("./data/role.json","utf-8")
     let chatData = fs.readFileSync("./data/chatRecord.json","utf-8")
 
@@ -83,8 +80,6 @@ app.get("/init", (req, res) => {
         chatData:JSON.parse(chatData)
     }
 
-    // data = JSON.parse(data.toString())
-    // console.log('創建成功', data)
     res.json(responseData)
 })
 

@@ -1,2 +1,44 @@
+1.檢查是否可把計時器放在connection
 2.跳躍
-5.聊天室滾輪
+3.聊天室滾輪
+4.聊天室傳入token
+
+
+
+let heartbeatIntervalId;
+
+io.on('connection', (socket) => {
+  // 確保只有一個計時器在運行
+  if (!heartbeatIntervalId) {
+    heartbeatIntervalId = setInterval(checkHeartbeat, 2000);
+  }
+
+  // 其他連接處理邏輯...
+});
+
+socket.on('disconnect', () => {
+  // 在連接斷開時停止計時器
+  if (heartbeatIntervalId) {
+    clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  }
+
+  // 其他斷開連接處理邏輯...
+});
+
+io.on('connection', (socket) => {
+  // 停止或清除舊的計時器
+  if (socket.heartbeatIntervalId) {
+    clearInterval(socket.heartbeatIntervalId);
+  }
+
+  const checkHeartbeat = () => {
+    // ...
+    // 計時器的原始邏輯
+    // ...
+  };
+
+  // 設置新的計時器
+  const heartbeatInterval = 2000;
+  socket.heartbeatIntervalId = setInterval(checkHeartbeat, heartbeatInterval);
+});
